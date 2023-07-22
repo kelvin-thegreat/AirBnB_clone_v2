@@ -9,7 +9,7 @@ class FileStorage:
     __objects = {}
 
     def all(self, cls=None):
-        """ Returns the list of objects of one type of class """
+        """Returns a dictionary of models currently in storage"""
         if cls is None:
             return self.__objects
         cls_name = cls.__name__
@@ -59,9 +59,9 @@ class FileStorage:
             pass
 
     def delete(self, obj=None):
-        """ Instance Object to delete obj from
-            __objects if it's inside or obj is equal to None
-        """
+        ''' deletes the object obj from the attribute
+            __objects if it's inside it
+        '''
         if obj is None:
             return
         obj_key = obj.to_dict()['__class__'] + '.' + obj.id
