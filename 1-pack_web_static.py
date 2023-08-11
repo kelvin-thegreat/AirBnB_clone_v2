@@ -1,5 +1,6 @@
 #!/usr/bin/python3
-""" scriptto  generates .tgz archive from contents of the web_static folder  """
+"""script to  generates .tgz archive from contents of the web_static folder"""
+
 from fabric.api import local
 from datetime import datetime
 import os
@@ -7,6 +8,8 @@ import os
 
 def do_pack():
     '''Function do_pack to return the archive path
+    do_pack() :function to archiver a path
+    return : returns None or archived path site
     '''
     now = datetime.utcnow().strftime('%Y%m%d%H%M%S')
 
