@@ -1,65 +1,64 @@
 #!/usr/bin/python3
-''' fabric script for distributing an archive to the web servers '''
+"""
+mdule to deploy zipped web static  files  to web servers
+"""
 
+from fabric.api import env, put, run
+from os.path import exists, isfile
 import os
-from datetime import datetime
-from fabric.api import env, local, put, run, runs_once
+import argparse
 
-
-env.hosts = ['54.160.120.43', '18.207.233.55']
-
-
-def do_deploy(archive_path):
-    """Distributes an archive to a web server.
-    Args:
-        archive_path (str): The path of the archive to distribute.
-    Returns:
-        If the file doesn't exist at archive_path or an error occurs - False.
-        Otherwise - True.
-    """
-    if not os.path.isdir("versions"):
-        os.mkdir("versions")
-    cur_time = datetime.now()
-    output = "versions/web_static_{}{}{}{}{}{}.tgz".format(
-        cur_time.year,
-        cur_time.month,
-        cur_time.day,
-        cur_time.hour,
-        cur_time.minute,
-        cur_time.second
-    )
-    try:
-        print("Packing web_static to {}".format(output))
-        local("tar -cvzf {} web_static".format(output))
-        archize_size = os.stat(output).st_size
-        print("web_static packed: {} -> {} Bytes".format(output, archize_size))
-    except Exception:
-        output = None
-    return output
+env.hosts = ['100.25.138.54', '100.26.161.218']
 
 
 def do_deploy(archive_path):
-    """Deploys the static files to the host servers.
-    Args:
-        archive_path (str): The path to the archived static files.
     """
-    if not os.path.exists(archive_path):
+    do_deploy class:
+    distributes an archive to your web servers
+    return : false, true, do_deploy 
+    """
+
+    if not exists(archive_path) and not isfile(archive_path):
         return False
-    file_name = os.path.basename(archive_path)
-    folder_name = file_name.replace(".tgz", "")
-    folder_path = "/data/web_static/releases/{}/".format(folder_name)
-    success = False
+
     try:
-        put(archive_path, "/tmp/{}".format(file_name))
-        run("mkdir -p {}".format(folder_path))
-        run("tar -xzf /tmp/{} -C {}".format(file_name, folder_path))
-        run("rm -rf /tmp/{}".format(file_name))
-        run("mv {}web_static/* {}".format(folder_path, folder_path))
-        run("rm -rf {}web_static".format(folder_path))
-        run("rm -rf /data/web_static/current")
-        run("ln -s {} /data/web_static/current".format(folder_path))
+        archive_filename = os.path.basename(archive_path)
+        no_ext = os.path.splitext(archive_filename)[0]
+
+        """ upload the archive to the /tmp/ directory of the web server"""
+        put(archive_path, '/tmp/')
+
+        """ Extract the archive to the folde"""
+        release_folder = '/data/web_static/releases/' + no_ext + '/'
+        run('mkdir -p {}'.format(release_folder))
+        run('tar -xzf /tmp/{} -C {}'.format(archive_filename, release_folder))
+
+        """delete the archive from the web server and
+        move files to proper locations"""
+        run('rm /tmp/{}'.format(archive_filename))
+        run('mv {}web_static/* {}'.format(release_folder, release_folder))
+
+        run('rm -f /data/web_static/current')
+        run('ln -s {} /data/web_static/current'.format(release_folder))
+
         print('New version deployed!')
-        success = True
+        return True
+
     except Exception:
-        success = False
-    return success
+        return False
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('archive_path', type=str, help='path to the archive file')
+    parser.add_argument('-u', '--username', type=str, help='SSH username')
+    parser.add_argument('-i', '--private-key', type=str, help='Path to SSH private key')
+    arg = parser.parse_args()
+
+    if arg.username:
+        env.user = args.username
+
+    if arg.private_key:
+        env.key_filename = arg.private_key
+
+    do_deploy(arg.archive_path)
