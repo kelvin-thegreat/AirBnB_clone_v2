@@ -1,64 +1,58 @@
 #!/usr/bin/python3
+""" module to extract and deploy  web static files
 """
-mdule to deploy zipped web static  files  to web servers
-"""
+from fabric.api import *
+from datetime import datetime
+from os import path
 
-from fabric.api import env, put, run
-from os.path import exists, isfile
-import os
-import argparse
 
 env.hosts = ['100.25.138.54', '100.26.161.218']
+env.user = 'ubuntu'
+env.key_filename = '~/.ssh/school'
 
 
 def do_deploy(archive_path):
-    """
-    do_deploy class:
-    distributes an archive to your web servers
-    return : false, true, do_deploy 
-    """
+        """
+        do_deploy class : deploys archived path
+        Deploy web files to server
+        returns : False, true
+        """
+        try:
+                if not (path.exists(archive_path)):
+                        return False
 
-    if not exists(archive_path) and not isfile(archive_path):
-        return False
+                """ upload archive"""
+                put(archive_path, '/tmp/')
 
-    try:
-        archive_filename = os.path.basename(archive_path)
-        no_ext = os.path.splitext(archive_filename)[0]
+                """create target dir"""
+                timestamp = archive_path[-18:-4]
+                run('sudo mkdir -p /data/web_static/\
+releases/web_static_{}/'.format(timestamp))
 
-        """ upload the archive to the /tmp/ directory of the web server"""
-        put(archive_path, '/tmp/')
+                """ uncompress archive and delete .tgz"""
+                run('sudo tar -xzf /tmp/web_static_{}.tgz -C \
+/data/web_static/releases/web_static_{}/'
+                    .format(timestamp, timestamp))
 
-        """ Extract the archive to the folde"""
-        release_folder = '/data/web_static/releases/' + no_ext + '/'
-        run('mkdir -p {}'.format(release_folder))
-        run('tar -xzf /tmp/{} -C {}'.format(archive_filename, release_folder))
+                """ remove archive"""
+                run('sudo rm /tmp/web_static_{}.tgz'.format(timestamp))
 
-        """delete the archive from the web server and
-        move files to proper locations"""
-        run('rm /tmp/{}'.format(archive_filename))
-        run('mv {}web_static/* {}'.format(release_folder, release_folder))
+                """move contents into host web_static"""
+                run('sudo mv /data/web_static/releases/web_static_{}/web_static/* \
+/data/web_static/releases/web_static_{}/'.format(timestamp, timestamp))
 
-        run('rm -f /data/web_static/current')
-        run('ln -s {} /data/web_static/current'.format(release_folder))
+                """ remove extraneous web_static dir"""
+                run('sudo rm -rf /data/web_static/releases/\
+web_static_{}/web_static'
+                    .format(timestamp))
 
-        print('New version deployed!')
+                """delete sym link"""
+                run('sudo rm -rf /data/web_static/current')
+
+                """symbolic linka"""
+                run('sudo ln -s /data/web_static/releases/\
+web_static_{}/ /data/web_static/current'.format(timestamp))
+        except:
+                return False
+        """Successfully Deployed"""
         return True
-
-    except Exception:
-        return False
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('archive_path', type=str, help='path to the archive file')
-    parser.add_argument('-u', '--username', type=str, help='SSH username')
-    parser.add_argument('-i', '--private-key', type=str, help='Path to SSH private key')
-    arg = parser.parse_args()
-
-    if arg.username:
-        env.user = args.username
-
-    if arg.private_key:
-        env.key_filename = arg.private_key
-
-    do_deploy(arg.archive_path)
